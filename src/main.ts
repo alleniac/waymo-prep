@@ -53,12 +53,14 @@ function mount() {
 
   const ul = document.getElementById("todo-list")!;
   ul.addEventListener("click", handleListClick);
+  ul.addEventListener("dblclick", handleListDoubleClick);
 }
 
 function handleAddTodo() {
   const textInput = document.getElementById("text-input")! as HTMLInputElement;
   const todoText = textInput.value?.trim();
   if (!todoText) {
+    // Should surface a warning saying "Todo cannot be empty."
     return;
   }
   textInput.value = "";
@@ -90,7 +92,66 @@ function handleListClick(e: MouseEvent) {
         todo.id === id ? { ...todo, done: !todo.done } : todo,
       ),
     });
+  } else if (action === "save") {
+    const editor = li.querySelector(".todo-editor")! as HTMLInputElement;
+    const newTodoText = editor.value.trim();
+    if (!newTodoText) {
+      // Should surface a warning saying "Todo cannot be empty."
+      return;
+    }
+    setState({
+      todos: state.todos.map((todo) =>
+        todo.id === id ? { ...todo, text: newTodoText } : todo,
+      ),
+    });
   }
+}
+
+function handleListDoubleClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  const li = target.closest("li[data-id]") as HTMLLIElement | null;
+  if (!li) return;
+
+  const checkbox = li.querySelector(".todo-checkbox")! as HTMLInputElement;
+  checkbox.disabled = true;
+
+  const text = li.querySelector(".todo-text")! as HTMLSpanElement;
+  text.hidden = true;
+
+  const editor = li.querySelector(".todo-editor")! as HTMLInputElement;
+  editor.hidden = false;
+  editor.focus();
+  editor.addEventListener("blur", (e) => handleCancelEdit(li, e), {
+    once: true,
+  });
+  // editor.addEventListener("keydown", handleKeydown())
+
+  const deleteBtn = li.querySelector(".delete-btn")! as HTMLButtonElement;
+  deleteBtn.hidden = true;
+
+  const saveBtn = li.querySelector(".save-btn")! as HTMLButtonElement;
+  saveBtn.hidden = false;
+}
+
+function handleCancelEdit(li: HTMLLIElement, e: FocusEvent) {
+  const secondaryTarget = e.relatedTarget as HTMLElement | null;
+  const saveBtn = li.querySelector(".save-btn")! as HTMLButtonElement;
+  if (secondaryTarget && secondaryTarget === saveBtn) {
+    return;
+  }
+  const checkbox = li.querySelector(".todo-checkbox")! as HTMLInputElement;
+  checkbox.disabled = false;
+
+  const text = li.querySelector(".todo-text")! as HTMLSpanElement;
+  text.hidden = false;
+
+  const editor = li.querySelector(".todo-editor")! as HTMLInputElement;
+  editor.hidden = true;
+
+  const deleteBtn = li.querySelector(".delete-btn")! as HTMLButtonElement;
+  deleteBtn.hidden = false;
+
+  saveBtn.hidden = true;
 }
 
 function update() {
@@ -99,9 +160,11 @@ function update() {
     .map((todo) => {
       return `
     <li data-id="${todo.id}">
-      <input type="checkbox" ${todo.done ? "checked" : ""} data-action="toggle">
-      <span data-action="toggle">${todo.text}</span>
-      <button data-action="delete">Delete</button>
+      <input type="checkbox" ${todo.done ? "checked" : ""} data-action="toggle" class="todo-checkbox">
+      <span class="todo-text">${todo.text}</span>
+      <input type="text" value="${todo.text}" class="todo-editor" hidden>
+      <button data-action="delete" class="delete-btn">Delete</button>
+      <button data-action="save" class="save-btn" hidden>Save</button>
     </li>
     `;
     })
